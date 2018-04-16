@@ -3,11 +3,15 @@
 import requests
 import json
 from SV_Mongo import sv_mongo
-import chip.relogin
+import relogin
 from multiprocessing import Process,cpu_count
+import csv
 '''
 获取B站游戏分类所有视频评论并保存至Mongodb中
+
 '''
+SAVE_TO='CSV'#保存至CSV或者MONGO
+
 sv = sv_mongo('bilibili','replies')
 
 def request(url):
@@ -56,17 +60,35 @@ def get_list(pn):
         title = data['archives'][i]['title']
         aid = data['archives'][i]['aid']
         yield {'title':title,'aid':aid}
-def main():
+def to_mongo():
     
     for pn in range(1,20):
         datas = get_list(pn)
-        for data in datas:
-        
+        for data in datas:        
             replies = get_replies(str(data['aid']))
-            for replie in replies:
-                
+            for replie in replies:                
                 sv.push_content(data['aid'],data['title'],replie)
-            
-
+def to_csv():
+    csvFile = open('result.csv','w+')
+    
+    try:
+        writer = csv.writer(csvFile)
+        writer.writerow(("aid","title","replies"))
+        for pn in range(1,50):
+            datas = get_list(pn)
+            for data in datas:        
+                replies = get_replies(str(data['aid']))
+                for replie in replies:
+                    try:
+                        writer.writerow((data['aid'],data['title'],replie))
+                    except UnicodeEncodeError:
+                        print('UnicodeEncodeError')
+    finally:
+        csvFile.close()
+def main():
+    if SAVE_TO=='Mongo':
+        to_mongo()
+    elif SAVE_TO=='CSV':
+        to_csv()
 if __name__ == '__main__':
     main()
